@@ -6,7 +6,7 @@ A web player for live DJ rides — an Icecast audio stream (broadcast from djay 
 
 This is intentionally a **static site**, not a webapp:
 
-- `index.html` — the player page: an `<audio>` element pointing at the Icecast stream URL, plus a small script that polls the Icecast `status-json.xsl` endpoint to show live/offline state. Stream and status URLs are constants at the top of the script (placeholders until the Icecast server exists). Brand colors are CSS variables in `:root`.
+- `index.html` — the player page: an `<audio>` element pointing at the Icecast stream URL, plus a small script that polls the Icecast `status-json.xsl` endpoint to show live/offline state. Stream (`https://stream.thedrops.fm/drops`) and status URLs are constants at the top of the script. Brand colors are CSS variables in `:root`.
 - No backend, database, or build step required. Hostable for free on GitHub Pages, Netlify, or Cloudflare Pages.
 
 Add a lightweight serverless function later only if needed (e.g. to proxy the Icecast status endpoint if CORS can't be opened on the streaming host, or to send "we're live" push notifications). Not needed for launch.
