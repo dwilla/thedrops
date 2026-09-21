@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>thedrops.fm</title>
+  <meta name="description" content="Live DJ sets for group rides on Zwift.">
+  <meta name="theme-color" content="#00252d">
+  <style>
+    /* Brand colors from the Zwift club banner: mint #51ffc5, dark teal #00252d. */
+    :root {
+      --bg: #00252d;
+      --surface: #0b3942;
+      --text: #f2fffb;
+      --muted: #8fb5b5;
+      --accent: #51ffc5;
+      --accent-text: #00252d;
+      --live: #51ffc5;
+      --offline: #4f7479;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 8vw, 3.25rem);
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+    }
+
+    .tagline { color: var(--muted); margin: 0 0 40px; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--surface);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    [data-state="unknown"] .status { visibility: hidden; }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--offline);
+    }
+
+    [data-state="live"] .status-dot {
+      background: var(--live);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 60%, transparent); }
+      50% { box-shadow: 0 0 0 6px transparent; }
+    }
+
+    .play {
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: var(--accent-text);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .play:hover:not(:disabled) { transform: scale(1.04); }
+    .play:active:not(:disabled) { transform: scale(0.97); }
+    .play:focus-visible { outline: 3px solid var(--text); outline-offset: 4px; }
+    .play:disabled { background: var(--surface); color: var(--offline); cursor: not-allowed; }
+    .play svg { width: 48px; height: 48px; fill: currentColor; }
+    .play .icon-pause, .play .icon-loading { display: none; }
+    [data-player="playing"] .play .icon-play { display: none; }
+    [data-player="playing"] .play .icon-pause { display: block; }
+    [data-player="loading"] .play .icon-play { display: none; }
+    [data-player="loading"] .play .icon-loading { display: block; animation: spin 1s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .message { color: var(--muted); min-height: 1.5em; margin: 24px 0 0; }
+
+    .volume {
+      margin-top: 24px;
+      width: min(240px, 100%);
+      accent-color: var(--accent);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body data-state="checking" data-player="stopped">
+  <h1>thedrops.fm</h1>
+  <p class="tagline">Live DJ sets for group rides on Zwift</p>
+
+  <div class="status" role="status">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span id="status-text">Checking…</span>
+  </div>
+
+  <button class="play" id="play" type="button" aria-label="Play">
+    <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+    <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+    <svg class="icon-loading" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-3a7 7 0 1 1-7-7z"/></svg>
+  </button>
+
+  <p class="message" id="message" aria-live="polite"></p>
+
+  <input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume">
+
+  <audio id="audio" preload="none"></audio>
+
+  <script>
+    // Icecast config: placeholders until the stream server is set up.
+    const STREAM_URL = 'https://stream.example.com/drops';
+    const STATUS_URL = 'https://stream.example.com/status-json.xsl';
+    const POLL_MS = 30000;
+
+    const body = document.body;
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('play');
+    const statusText = document.getElementById('status-text');
+    const message = document.getElementById('message');
+    const volume = document.getElementById('volume');
+
+    const mount = new URL(STREAM_URL).pathname;
+
+    // 'live' | 'offline' | 'unknown' (status endpoint unreachable, e.g. CORS)
+    function setState(state) {
+      body.dataset.state = state;
+      statusText.textContent = { live: 'Live', offline: 'Offline', unknown: '' }[state];
+      if (state === 'offline') {
+        if (body.dataset.player !== 'stopped') stop();
+        playBtn.disabled = true;
+        message.textContent = 'Not live right now. Check back at ride time.';
+      } else if (playBtn.disabled) {
+        playBtn.disabled = false;
+        message.textContent = '';
+      }
+    }
+
+    function setPlayer(player) {
+      body.dataset.player = player;
+      playBtn.setAttribute('aria-label', player === 'stopped' ? 'Play' : 'Pause');
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch(STATUS_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.status);
+        const { icestats } = await res.json();
+        // Icecast returns a single object for one mount, an array for several, nothing when idle.
+        const sources = [].concat(icestats.source || []);
+        const live = sources.some(s => s.listenurl && new URL(s.listenurl).pathname === mount);
+        setState(live ? 'live' : 'offline');
+      } catch {
+        setState('unknown');
+      }
+    }
+
+    function play() {
+      // Reload the source every time so playback starts at the live edge, not a stale buffer.
+      audio.src = STREAM_URL;
+      setPlayer('loading');
+      message.textContent = '';
+      audio.play().catch(() => {});
+    }
+
+    function stop() {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      setPlayer('stopped');
+    }
+
+    playBtn.addEventListener('click', () => {
+      body.dataset.player === 'stopped' ? play() : stop();
+    });
+
+    audio.addEventListener('playing', () => setPlayer('playing'));
+    audio.addEventListener('waiting', () => setPlayer('loading'));
+    audio.addEventListener('error', () => {
+      if (!audio.getAttribute('src')) return; // triggered by stop()
+      stop();
+      message.textContent = "Couldn't reach the stream. It may not be live yet.";
+      checkStatus();
+    });
+
+    volume.addEventListener('input', () => { audio.volume = volume.value; });
+
+    // Lock-screen / hardware media key controls.
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: 'thedrops.fm', artist: 'Live DJ ride' });
+      navigator.mediaSession.setActionHandler('play', play);
+      navigator.mediaSession.setActionHandler('pause', stop);
+      navigator.mediaSession.setActionHandler('stop', stop);
+    }
+
+    checkStatus();
+    setInterval(checkStatus, POLL_MS);
+  </script>
+</body>
+</html>
