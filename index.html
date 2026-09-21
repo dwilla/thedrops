@@ -7,15 +7,15 @@
   <meta name="description" content="Live DJ sets for group rides on Zwift.">
   <meta name="theme-color" content="#00252d">
   <style>
-    /* Brand colors from the Zwift club banner: mint #51ffc5, dark teal #00252d. */
+    /* Brand colors: mint and off-white from the logo, dark teal from the Zwift club banner. */
     :root {
       --bg: #00252d;
       --surface: #0b3942;
-      --text: #f2fffb;
+      --text: #f5fffb;
       --muted: #8fb5b5;
-      --accent: #51ffc5;
+      --accent: #88fcc9;
       --accent-text: #00252d;
-      --live: #51ffc5;
+      --live: #88fcc9;
       --offline: #4f7479;
     }
 
@@ -35,11 +35,9 @@
       text-align: center;
     }
 
-    h1 {
-      font-size: clamp(2rem, 8vw, 3.25rem);
-      letter-spacing: -0.03em;
-      margin: 0 0 8px;
-    }
+    h1 { margin: 0 0 12px; width: min(440px, 100%); }
+
+    .logo { display: block; width: 100%; height: auto; }
 
     .tagline { color: var(--muted); margin: 0 0 40px; }
 
@@ -122,7 +120,7 @@
   </style>
 </head>
 <body data-state="checking" data-player="stopped">
-  <h1>thedrops.fm</h1>
+  <h1><img class="logo" src="thedrops-logoblack.svg" alt="thedrops.fm" width="1115" height="310"></h1>
   <p class="tagline">Live DJ sets for group rides on Zwift</p>
 
   <div class="status" role="status">
