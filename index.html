@@ -98,9 +98,14 @@
     [data-player="playing"] .play .icon-play { display: none; }
     [data-player="playing"] .play .icon-pause { display: block; }
     [data-player="loading"] .play .icon-play { display: none; }
-    [data-player="loading"] .play .icon-loading { display: block; animation: spin 1s linear infinite; }
+    [data-player="loading"] .play .icon-loading { display: block; }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Opacity-only, so it still reads as loading with Reduce Motion on. */
+    .icon-loading circle { opacity: 0.25; animation: blink 1.2s ease-in-out infinite; }
+    .icon-loading circle:nth-child(2) { animation-delay: 0.2s; }
+    .icon-loading circle:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink { 40% { opacity: 1; } }
 
     .message { color: var(--muted); min-height: 1.5em; margin: 24px 0 0; }
 
@@ -111,7 +116,8 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .play { transition: none; }
+      [data-state="live"] .status-dot { animation: none; }
     }
   </style>
 </head>
@@ -127,7 +133,7 @@
   <button class="play" id="play" type="button" aria-label="Play">
     <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
     <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-    <svg class="icon-loading" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-3a7 7 0 1 1-7-7z"/></svg>
+    <svg class="icon-loading" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/></svg>
   </button>
 
   <p class="message" id="message" aria-live="polite"></p>
